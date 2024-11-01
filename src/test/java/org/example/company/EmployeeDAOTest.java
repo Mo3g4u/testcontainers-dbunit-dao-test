@@ -33,14 +33,19 @@ import org.testcontainers.utility.DockerImageName;
 @DisplayName("EmployeeDAOを対象にしたテストクラス")
 public class EmployeeDAOTest {
     // 初期スキーマを格納するディレクトリ
-    private static final String SCHEMA_DIR = "src/test/resources/SCHEMA";
+    private static final String SCHEMA_DIR = "SCHEMA";
     // DBUnitのリソースを格納するディレクトリ
     private static final String INIT_DATA_DIR = "src/test/resources/INIT_DATA";
     private static final String EXPECTED_DATA_DIR_1 = "src/test/resources/EXPECTED_DATA_1";
     private static final String EXPECTED_DATA_DIR_2 = "src/test/resources/EXPECTED_DATA_2";
     private static final String EXPECTED_DATA_DIR_3 = "src/test/resources/EXPECTED_DATA_3";
 
-    static MySQLContainer<?> mysql = new MySQLContainer<>(DockerImageName.parse("mysql:8.0"));
+    static MySQLContainer<?> mysql = new MySQLContainer<>(DockerImageName.parse("mysql:8.0"))
+            .withInitScripts(
+                    SCHEMA_DIR + "/1_COMPANY_DROP.sql",
+                    SCHEMA_DIR + "/2_COMPANY_DDL.sql",
+                    SCHEMA_DIR + "/3_COMPANY_DML.sql"
+            );
 
     // テスト対象クラス
     EmployeeDAO employeeDAO;
@@ -82,40 +87,9 @@ public class EmployeeDAOTest {
         // IDatabaseConnectionからJDBCコネクションを取り出し、EmployeeDAOを初期化する
         employeeDAO = new EmployeeDAO(databaseConnection.getConnection());
 
-        // 初期スキーマとデータをセットアップする
-        executeSqlScripts(databaseConnection.getConnection(),
-                SCHEMA_DIR + "/1_COMPANY_DROP.sql",
-                SCHEMA_DIR + "/2_COMPANY_DDL.sql",
-                SCHEMA_DIR + "/3_COMPANY_DML.sql");
-
         // 初期データをセットアップする
         initData();
     }
-
-    /*
-     * 指定されたSQLファイルを順に実行するメソッド
-     */
-    private void executeSqlScripts(Connection connection, String... sqlFilePaths) throws Exception {
-        for (String path : sqlFilePaths) {
-            // ファイルの内容を読み込む
-            String sql = new String(Files.readAllBytes(Paths.get(path)));
-
-            // セミコロンで区切ってSQL文を分割
-            String[] sqlStatements = sql.split(";");
-
-            // 各SQL文を実行
-            for (String statementText : sqlStatements) {
-                statementText = statementText.trim();  // 不要な空白を除去
-                if (!statementText.isEmpty()) {
-                    System.out.println("Executing SQL: " + statementText);  // 実行するSQL文を出力
-                    try (Statement statement = connection.createStatement()) {
-                        statement.execute(statementText);
-                    }
-                }
-            }
-        }
-    }
-
 
     /*
      * 初期データをセットアップする
